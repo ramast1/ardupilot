@@ -2435,7 +2435,7 @@ void QuadPlane::vtol_position_controller(void)
         const Vector2f diff_wp = plane.current_loc.get_distance_NE(loc);
         const float distance = diff_wp.length();
         Vector2f groundspeed = ahrs.groundspeed_vector();
-        float speed_towards_target = distance>1?(diff_wp.normalized() * groundspeed):0;
+        float speed_towards_target = distance>1?(diff_wp * groundspeed / distance):0;
 
         // Initialise position control to target zero velocity
         // above the waypoint.
@@ -2456,12 +2456,13 @@ void QuadPlane::vtol_position_controller(void)
         // run fixed wing navigation
         plane.nav_controller->update_waypoint(plane.prev_WP_loc, loc);
 
-        Vector2f target_speed_xy = diff_wp.normalized() * poscontrol.pre_decel_gndspd;
-        float target_speed = target_speed_xy.length();
+        Vector2f target_speed_xy {};
+        float target_speed = 0;
 
-        // update target speed based on sqrt of distance
-        target_speed = safe_sqrt(2*transition_decel*distance);
-        target_speed_xy = diff_wp.normalized() * target_speed;
+        if (distance > 0.1) {
+            target_speed = safe_sqrt(2*transition_decel*distance);
+            target_speed_xy = diff_wp * target_speed / distance;
+        }
 
         if (distance < 1) {
             // prevent numerical error before switching to POSITION2
