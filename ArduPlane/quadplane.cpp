@@ -2304,6 +2304,14 @@ bool QuadPlane::in_vtol_mode(void) const
         poscontrol.state == QPOS_APPROACH) {
         return false;
     }
+#if HAL_ADSB_ENABLED
+    if (plane.control_mode == &plane.mode_avoidADSB && plane.auto_state.vtol_loiter) {
+        return true;
+    }
+#endif
+    if (plane.control_mode == &plane.mode_guided && plane.auto_state.vtol_loiter) {
+        return true;
+    }
     return (plane.control_mode == &plane.mode_qstabilize ||
             plane.control_mode == &plane.mode_qhover ||
             plane.control_mode == &plane.mode_qloiter ||
@@ -2311,7 +2319,6 @@ bool QuadPlane::in_vtol_mode(void) const
             plane.control_mode == &plane.mode_qrtl ||
             plane.control_mode == &plane.mode_qacro ||
             plane.control_mode == &plane.mode_qautotune ||
-            ((plane.control_mode == &plane.mode_guided || plane.control_mode == &plane.mode_avoidADSB) && plane.auto_state.vtol_loiter) ||
             in_vtol_auto());
 }
 
