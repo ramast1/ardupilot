@@ -30,6 +30,8 @@
 
 #if HAL_EXTERNAL_AHRS_ENABLED
 
+using LORDpacketData_t = AP_ExternalAHRS_LORD::LORDpacketData_t;
+
 extern const AP_HAL::HAL &hal;
 
 AP_ExternalAHRS_LORD::AP_ExternalAHRS_LORD(AP_ExternalAHRS *_frontend,
@@ -51,19 +53,45 @@ AP_ExternalAHRS_LORD::AP_ExternalAHRS_LORD(AP_ExternalAHRS *_frontend,
     uart->begin(baudrate);
     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LORD ExternalAHRS with baud: %lu, on port %d", baudrate, port_num);
 
+    if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_ExternalAHRS_LORD::update_thread, void), "AHRS", 2048, AP_HAL::Scheduler::PRIORITY_SPI, 0)) {
+        AP_HAL::panic("Failed to start ExternalAHRS update thread");
+    }
+
 }
 
-void AP_ExternalAHRS_LORD::testing() {
+bool AP_ExternalAHRS_LORD::testing() {
     uint8_t buffer[512];
     if (!uart) {
         hal.console->printf("Uart died\n");
-        return;
+        return false;
     }
 //    hal.console->printf("Opened on portnum: %d\n",port_num);
     uint32_t n = uart->read(buffer, 512);
+    if (n > 0) {
+    AP_ExternalAHRS::ins_data_message_t ins;
+    LORDpacketData_t lordPacket = processLORDPacket(buffer);
+    ins.accel = lordPacket.accel;
+    ins.gyro = lordPacket.gyro;
+    AP::ins().handle_external(ins);
     for (uint8_t i = 0; i < n; i++)
         hal.console->printf("%02x",buffer[i]);
     hal.console->printf("\n");
+    }
+    return true;
+}
+
+void AP_ExternalAHRS_LORD::update_thread() {
+    if (!port_opened) {
+        // open port in the thread
+        port_opened = true;
+        uart->begin(baudrate, 1024, 512);
+    }
+
+    while (true) {
+        if (!testing()) {
+            hal.scheduler->delay(1);
+        }
+    }
 }
 
 int8_t AP_ExternalAHRS_LORD::get_port(void) const
@@ -95,67 +123,66 @@ void AP_ExternalAHRS_LORD::send_status_report(mavlink_channel_t chan) const
 {
     return;
 }
-/*
-LORDpacketData_t AP_ExternalAHRS_LORD::processLORDPacket(const uint8_t*) {
+
+LORDpacketData_t AP_ExternalAHRS_LORD::processLORDPacket(const uint8_t* pkt) {
     uint8_t pktDesc = pkt[2];
     switch (pktDesc) {
         case 0x80:
             return insData(pkt);
         default:
-            LORDpacketData_t nullPacket = { -999, -999, -999, -999, -999, -999 };
+            LORDpacketData_t nullPacket = { {-999, -999, -999}, {-999, -999, -999} };
             return nullPacket;
     }
 }
 
-LORDpacketData_t AP_ExternalAHRS_LORD::insData(const uint8_t*) {
+LORDpacketData_t AP_ExternalAHRS_LORD::insData(const uint8_t* pkt) {
     LORDpacketData_t data;
     uint8_t payloadLen = pkt[3];
     for (uint8_t i = 4; i < payloadLen; i += pkt[i]) {
         uint8_t fieldDesc = pkt[i+1];
         switch (fieldDesc) {
             case 04:
-                data.accel = populateVector3f(pkt, i);
+                data.accel = populateVector3f(pkt, i, 9.8);
                 break;
             case 05:
-                data.gyro = populateVector3f(pkt, i);
+                data.gyro = populateVector3f(pkt, i, 1);
                 break;
         }
     }
     return data;
 }
 
-Vector3f AP_ExternalAHRS_LORD::populateVector3f(const uint8_t*,uint8_t) {
+Vector3f AP_ExternalAHRS_LORD::populateVector3f(const uint8_t* pkt, uint8_t offset, float multiplier = 1) {
     Vector3f data;
     uint32_t tmp[3];
     for (uint8_t j = 0; j < 3; j++) {
         tmp[j] = get4ByteField(pkt, offset + j * 4 + 2);
     }
-    data.x = *reinterpret_cast<float*>( &tmp[0] );
-    data.y = *reinterpret_cast<float*>( &tmp[1] );
-    data.z = *reinterpret_cast<float*>( &tmp[2] );
+    data.x = (*reinterpret_cast<float*>( &tmp[0] )) * multiplier;
+    data.y = (*reinterpret_cast<float*>( &tmp[1] )) * multiplier;
+    data.z = (*reinterpret_cast<float*>( &tmp[2] )) * multiplier;
     return data;
 }
 
-uint64_t AP_ExternalAHRS_LORD::get8ByteField(const uint8_t*,uint8_t) {
+uint64_t AP_ExternalAHRS_LORD::get8ByteField(const uint8_t* pkt, uint8_t offset) {
     uint64_t res = 0;
     for (int i = 0; i < 2; i++)
         res = res << 32 | get4ByteField(pkt,offset + 4 * i);
     return res;
 }
 
-uint32_t AP_ExternalAHRS_LORD::get4ByteField(const uint8_t*,uint8_t) {
+uint32_t AP_ExternalAHRS_LORD::get4ByteField(const uint8_t* pkt, uint8_t offset) {
     uint32_t res = 0;
     for (int i = 0; i < 2; i++)
         res = res << 16 | get2ByteField(pkt, offset + 2 * i);
     return res;
 }
 
-uint16_t AP_ExternalAHRS_LORD::get2ByteField(const uint8_t*,uint8_t) {
+uint16_t AP_ExternalAHRS_LORD::get2ByteField(const uint8_t* pkt,uint8_t offset) {
     uint16_t res = 0;
     for (int i = 0; i < 2; i++)
         res = res << 8 | pkt[offset + i];
     return res;
 }
-*/
 
 #endif  // HAL_EXTERNAL_AHRS_ENABLED
