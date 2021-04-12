@@ -38,8 +38,8 @@ public:
 
     // check for new data
     void update() override {
-        testing();
-    };
+        check_uart();
+    }
 
     typedef struct {
         Vector3f accel;
@@ -51,9 +51,11 @@ private:
     AP_HAL::UARTDriver *uart;
     int8_t port_num;
     uint32_t baudrate;
-    bool port_opened = false;
-    bool testing();
+    bool port_opened;
+
+    bool check_uart();
     void update_thread();
+
     LORDpacketData_t processLORDPacket(const uint8_t*);
     LORDpacketData_t insData(const uint8_t*);
     Vector3f populateVector3f(const uint8_t*,uint8_t,float);
