@@ -37,34 +37,31 @@ AP_ExternalAHRS_LORD::AP_ExternalAHRS_LORD(AP_ExternalAHRS *_frontend,
     AP_ExternalAHRS_backend(_frontend, _state)
 {
     auto &sm = AP::serialmanager();
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LORD about to try to use serial manager!!!");
     uart = sm.find_serial(AP_SerialManager::SerialProtocol_AHRS, 0);
     if (!uart) {
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ExternalAHRS no UART");
-        hal.console->printf("LORD IS NOT CONNECTED ANYMORE\n");
         return;
     }
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LORD ExternalAHRS initialised");
-
     baudrate = sm.find_baudrate(AP_SerialManager::SerialProtocol_AHRS, 0);
     port_num = sm.find_portnum(AP_SerialManager::SerialProtocol_AHRS, 0);
-    uart->begin(baudrate);
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LORD ExternalAHRS with baud: %lu, on port %d", baudrate, port_num);
 
-}
-
-void AP_ExternalAHRS_LORD::testing() {
-    uint8_t buffer[512];
-    if (!uart) {
-        hal.console->printf("Uart died\n");
-        return;
+    if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_ExternalAHRS_LORD::update_thread, void), "AHRS", 2048, AP_HAL::Scheduler::PRIORITY_SPI, 0)) {
+        AP_HAL::panic("Failed to start external AHRS update thread");
     }
-//    hal.console->printf("Opened on portnum: %d\n",port_num);
-    uint32_t n = uart->read(buffer, 512);
-    for (uint8_t i = 0; i < n; i++)
-        hal.console->printf("%02x",buffer[i]);
-    hal.console->printf("\n");
+
 }
+
+void AP_ExternalAHRS_LORD::update_thread() {
+    while (true) {
+        check_uart();
+        hal.scheduler->delay(10);
+        hal.console->printf("In the update thread\n");
+    }
+}
+
+bool AP_ExternalAHRS_LORD::check_uart() {
+    return true;
+}
+
 
 int8_t AP_ExternalAHRS_LORD::get_port(void) const
 {
@@ -95,67 +92,5 @@ void AP_ExternalAHRS_LORD::send_status_report(mavlink_channel_t chan) const
 {
     return;
 }
-/*
-LORDpacketData_t AP_ExternalAHRS_LORD::processLORDPacket(const uint8_t*) {
-    uint8_t pktDesc = pkt[2];
-    switch (pktDesc) {
-        case 0x80:
-            return insData(pkt);
-        default:
-            LORDpacketData_t nullPacket = { -999, -999, -999, -999, -999, -999 };
-            return nullPacket;
-    }
-}
-
-LORDpacketData_t AP_ExternalAHRS_LORD::insData(const uint8_t*) {
-    LORDpacketData_t data;
-    uint8_t payloadLen = pkt[3];
-    for (uint8_t i = 4; i < payloadLen; i += pkt[i]) {
-        uint8_t fieldDesc = pkt[i+1];
-        switch (fieldDesc) {
-            case 04:
-                data.accel = populateVector3f(pkt, i);
-                break;
-            case 05:
-                data.gyro = populateVector3f(pkt, i);
-                break;
-        }
-    }
-    return data;
-}
-
-Vector3f AP_ExternalAHRS_LORD::populateVector3f(const uint8_t*,uint8_t) {
-    Vector3f data;
-    uint32_t tmp[3];
-    for (uint8_t j = 0; j < 3; j++) {
-        tmp[j] = get4ByteField(pkt, offset + j * 4 + 2);
-    }
-    data.x = *reinterpret_cast<float*>( &tmp[0] );
-    data.y = *reinterpret_cast<float*>( &tmp[1] );
-    data.z = *reinterpret_cast<float*>( &tmp[2] );
-    return data;
-}
-
-uint64_t AP_ExternalAHRS_LORD::get8ByteField(const uint8_t*,uint8_t) {
-    uint64_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 32 | get4ByteField(pkt,offset + 4 * i);
-    return res;
-}
-
-uint32_t AP_ExternalAHRS_LORD::get4ByteField(const uint8_t*,uint8_t) {
-    uint32_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 16 | get2ByteField(pkt, offset + 2 * i);
-    return res;
-}
-
-uint16_t AP_ExternalAHRS_LORD::get2ByteField(const uint8_t*,uint8_t) {
-    uint16_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 8 | pkt[offset + i];
-    return res;
-}
-*/
 
 #endif  // HAL_EXTERNAL_AHRS_ENABLED

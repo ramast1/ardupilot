@@ -38,25 +38,17 @@ public:
 
     // check for new data
     void update() override {
-        testing();
+        check_uart();
     };
 
 private:
-    typedef struct {
-        Vector3f accel;
-        Vector3f gyro;
-    } LORDpacketData_t;
 
     AP_HAL::UARTDriver *uart;
     int8_t port_num;
     uint32_t baudrate;
-    void testing();
-    LORDpacketData_t processLORDPacket(const uint8_t*);
-    LORDpacketData_t insData(const uint8_t*);
-    Vector3f populateVector3f(const uint8_t*,uint8_t);
-    uint64_t get8ByteField(const uint8_t*,uint8_t);
-    uint32_t get4ByteField(const uint8_t*,uint8_t);
-    uint16_t get2ByteField(const uint8_t*,uint8_t);
+
+    void update_thread();
+    bool check_uart();
 
 };
 
