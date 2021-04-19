@@ -41,6 +41,11 @@ public:
         check_uart();
     };
 
+    typedef struct {
+        Vector3f accel;
+        Vector3f gyro;
+    } lordPacket_t;
+
 private:
 
     AP_HAL::UARTDriver *uart;
@@ -49,6 +54,12 @@ private:
 
     void update_thread();
     bool check_uart();
+
+    lordPacket_t parsePacket(const uint8_t*);
+    Vector3f populateVector3f(const uint8_t*,uint8_t,float);
+    uint64_t get8ByteField(const uint8_t*,uint8_t);
+    uint32_t get4ByteField(const uint8_t*,uint8_t);
+    uint16_t get2ByteField(const uint8_t*,uint8_t);
 
 };
 

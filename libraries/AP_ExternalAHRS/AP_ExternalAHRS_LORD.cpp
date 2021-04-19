@@ -31,6 +31,7 @@
 #if HAL_EXTERNAL_AHRS_ENABLED
 
 extern const AP_HAL::HAL &hal;
+using lordPacket_t = AP_ExternalAHRS_LORD::lordPacket_t;
 
 AP_ExternalAHRS_LORD::AP_ExternalAHRS_LORD(AP_ExternalAHRS *_frontend,
                                                      AP_ExternalAHRS::state_t &_state) :
@@ -54,11 +55,20 @@ void AP_ExternalAHRS_LORD::update_thread() {
     while (true) {
         check_uart();
         hal.scheduler->delay(10);
-        hal.console->printf("In the update thread\n");
     }
 }
 
 bool AP_ExternalAHRS_LORD::check_uart() {
+    uint8_t pkt[] = { 0x75, 0x65, 0x80, 0x2a, 0x0e, 0x04, 0x3e, 0x49, 0x56, 0x65, 0xbb, 0x24, 0x12, 0xc0, 0xbf, 0x7a, 0xa0, 0x1d, 0x0e, 0x05, 0xbb, 0xc7, 0x35, 0x1d, 0xbb, 0x22, 0xce, 0x02, 0x3b, 0x0e, 0xf6, 0x1a, 0x0e, 0x12, 0x40, 0x5c, 0x1a, 0xb0, 0x20, 0xc4, 0x9b, 0xa6, 0x00, 0x00, 0x00, 0x06, 0x1d, 0x37 };
+    lordPacket_t d = parsePacket(pkt);
+    //d.gyro.x = 10;
+    AP_ExternalAHRS::ins_data_message_t ins;
+    //hal.console->printf("gyrox: %f, y: %f, z: %f\n",d.gyro.x,d.gyro.y,d.gyro.z);
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "inside thread");
+    ins.accel = d.accel;
+    ins.gyro = d.gyro;
+    ins.temperature = 25;
+    AP::ins().handle_external(ins);
     return true;
 }
 
@@ -92,5 +102,53 @@ void AP_ExternalAHRS_LORD::send_status_report(mavlink_channel_t chan) const
 {
     return;
 }
+
+lordPacket_t AP_ExternalAHRS_LORD::parsePacket(const uint8_t* pkt) {
+    lordPacket_t data;
+    uint8_t payloadLen = pkt[3];
+    for (uint8_t i = 4; i < payloadLen; i += pkt[i]) {
+        uint8_t fieldDesc = pkt[i+1];
+        switch (fieldDesc) {
+            case 04:
+                data.accel = populateVector3f(pkt, i, 1);
+                break;
+            case 05:
+                data.gyro = populateVector3f(pkt, i, 1);
+                break;
+        }
+    }
+    return data;
+}
+Vector3f AP_ExternalAHRS_LORD::populateVector3f(const uint8_t* pkt, uint8_t offset, float multiplier) {
+    Vector3f data;
+    uint32_t tmp[3];
+    for (uint8_t j = 0; j < 3; j++) {
+        tmp[j] = get4ByteField(pkt, offset + j * 4 + 2);
+    }
+    data.x = *reinterpret_cast<float*>( &tmp[0] );
+    data.y = *reinterpret_cast<float*>( &tmp[1] );
+    data.z = *reinterpret_cast<float*>( &tmp[2] );
+    return data * multiplier;
+}
+uint64_t AP_ExternalAHRS_LORD::get8ByteField(const uint8_t* pkt, uint8_t offset) {
+    uint64_t res = 0;
+    for (int i = 0; i < 2; i++)
+        res = res << 32 | get4ByteField(pkt,offset + 4 * i);
+    return res;
+}
+uint32_t AP_ExternalAHRS_LORD::get4ByteField(const uint8_t* pkt, uint8_t offset) {
+    uint32_t res = 0;
+    for (int i = 0; i < 2; i++)
+        res = res << 16 | get2ByteField(pkt, offset + 2 * i);
+    return res;
+}
+uint16_t AP_ExternalAHRS_LORD::get2ByteField(const uint8_t* pkt, uint8_t offset) {
+    uint16_t res = 0;
+    for (int i = 0; i < 2; i++)
+        res = res << 8 | pkt[offset + i];
+    return res;
+}
+
+
 
 #endif  // HAL_EXTERNAL_AHRS_ENABLED
