@@ -968,34 +968,34 @@ AP_InertialSensor::detect_backends(void)
 #elif AP_FEATURE_BOARD_DETECT
     switch (AP_BoardConfig::get_board_type()) {
     case AP_BoardConfig::PX4_BOARD_PX4V1:
-        ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU60x0_NAME), ROTATION_NONE));
+        //ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU60x0_NAME), ROTATION_NONE));
         break;
 
     case AP_BoardConfig::PX4_BOARD_PIXHAWK:
-        ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU60x0_NAME), ROTATION_ROLL_180));
-        ADD_BACKEND(AP_InertialSensor_LSM9DS0::probe(*this,
-                                                      hal.spi->get_device(HAL_INS_LSM9DS0_G_NAME),
-                                                      hal.spi->get_device(HAL_INS_LSM9DS0_A_NAME),
-                                                      ROTATION_ROLL_180,
-                                                      ROTATION_ROLL_180_YAW_270,
-                                                      ROTATION_PITCH_180));
+        //ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU60x0_NAME), ROTATION_ROLL_180));
+        //ADD_BACKEND(AP_InertialSensor_LSM9DS0::probe(*this,
+        //                                              hal.spi->get_device(HAL_INS_LSM9DS0_G_NAME),
+        //                                              hal.spi->get_device(HAL_INS_LSM9DS0_A_NAME),
+        //                                              ROTATION_ROLL_180,
+        //                                              ROTATION_ROLL_180_YAW_270,
+        //                                              ROTATION_PITCH_180));
         break;
 
     case AP_BoardConfig::PX4_BOARD_PIXHAWK2:
         // older Pixhawk2 boards have the MPU6000 instead of MPU9250
-        _fast_sampling_mask.set_default(1);
-        ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU9250_EXT_NAME), ROTATION_PITCH_180));
-        ADD_BACKEND(AP_InertialSensor_LSM9DS0::probe(*this,
-                                                      hal.spi->get_device(HAL_INS_LSM9DS0_EXT_G_NAME),
-                                                      hal.spi->get_device(HAL_INS_LSM9DS0_EXT_A_NAME),
-                                                      ROTATION_ROLL_180_YAW_270,
-                                                      ROTATION_ROLL_180_YAW_90,
-                                                      ROTATION_ROLL_180_YAW_90));
-        ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU9250_NAME), ROTATION_YAW_270));
+        //_fast_sampling_mask.set_default(1);
+        //ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU9250_EXT_NAME), ROTATION_PITCH_180));
+        //ADD_BACKEND(AP_InertialSensor_LSM9DS0::probe(*this,
+        //                                              hal.spi->get_device(HAL_INS_LSM9DS0_EXT_G_NAME),
+        //                                              hal.spi->get_device(HAL_INS_LSM9DS0_EXT_A_NAME),
+        //                                              ROTATION_ROLL_180_YAW_270,
+        //                                              ROTATION_ROLL_180_YAW_90,
+        //                                              ROTATION_ROLL_180_YAW_90));
+        //ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device(HAL_INS_MPU9250_NAME), ROTATION_YAW_270));
         // new cubes have ICM20602, ICM20948, ICM20649
-        ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device("icm20602_ext"), ROTATION_ROLL_180_YAW_270));
-        ADD_BACKEND(AP_InertialSensor_Invensensev2::probe(*this, hal.spi->get_device("icm20948_ext"), ROTATION_PITCH_180));
-        ADD_BACKEND(AP_InertialSensor_Invensensev2::probe(*this, hal.spi->get_device("icm20948"), ROTATION_YAW_270));
+        //ADD_BACKEND(AP_InertialSensor_Invensense::probe(*this, hal.spi->get_device("icm20602_ext"), ROTATION_ROLL_180_YAW_270));
+        //ADD_BACKEND(AP_InertialSensor_Invensensev2::probe(*this, hal.spi->get_device("icm20948_ext"), ROTATION_PITCH_180));
+        //ADD_BACKEND(AP_InertialSensor_Invensensev2::probe(*this, hal.spi->get_device("icm20948"), ROTATION_YAW_270));
         break;
 
     case AP_BoardConfig::PX4_BOARD_FMUV5:
@@ -1094,7 +1094,7 @@ AP_InertialSensor::detect_backends(void)
         AP_BoardConfig::config_error("INS: unable to initialise driver");
     }
 }
-
+////
 // Armed, Copter, PixHawk:
 // ins_periodic: 57500 events, 0 overruns, 208754us elapsed, 3us avg, min 1us max 218us 40.662us rms
 void AP_InertialSensor::periodic()

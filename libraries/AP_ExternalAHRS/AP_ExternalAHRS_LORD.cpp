@@ -54,7 +54,7 @@ AP_ExternalAHRS_LORD::AP_ExternalAHRS_LORD(AP_ExternalAHRS *_frontend,
 void AP_ExternalAHRS_LORD::update_thread() {
     while (true) {
         check_uart();
-        hal.scheduler->delay(10);
+        hal.scheduler->delay(1);
     }
 }
 
@@ -63,10 +63,9 @@ bool AP_ExternalAHRS_LORD::check_uart() {
     lordPacket_t d = parsePacket(pkt);
     //d.gyro.x = 10;
     AP_ExternalAHRS::ins_data_message_t ins;
-    //hal.console->printf("gyrox: %f, y: %f, z: %f\n",d.gyro.x,d.gyro.y,d.gyro.z);
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "inside thread");
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "inside thread %f",d.gyro.x);
     ins.accel = d.accel;
-    ins.gyro = d.gyro;
+    ins.gyro = {0,0,0};
     ins.temperature = 25;
     AP::ins().handle_external(ins);
     return true;
@@ -75,7 +74,7 @@ bool AP_ExternalAHRS_LORD::check_uart() {
 
 int8_t AP_ExternalAHRS_LORD::get_port(void) const
 {
-    return -1;
+    return 4;
 };
 
 bool AP_ExternalAHRS_LORD::healthy(void) const
@@ -110,10 +109,13 @@ lordPacket_t AP_ExternalAHRS_LORD::parsePacket(const uint8_t* pkt) {
         uint8_t fieldDesc = pkt[i+1];
         switch (fieldDesc) {
             case 04:
-                data.accel = populateVector3f(pkt, i, 1);
+                data.accel = populateVector3f(pkt, i, 9.8);
                 break;
             case 05:
                 data.gyro = populateVector3f(pkt, i, 1);
+                break;
+            case 06:
+                data.mag = populateVector3f(pkt, i, 1);
                 break;
         }
     }
@@ -132,20 +134,29 @@ Vector3f AP_ExternalAHRS_LORD::populateVector3f(const uint8_t* pkt, uint8_t offs
 }
 uint64_t AP_ExternalAHRS_LORD::get8ByteField(const uint8_t* pkt, uint8_t offset) {
     uint64_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 32 | get4ByteField(pkt,offset + 4 * i);
+    // for (int i = 0; i < 2; i++)
+    //     res = res << 32 | get4ByteField(pkt,offset + 4 * i);
+    memmove(&res, pkt+offset, 8);
+    if (char(1) == 1)
+        res = ((res & 0xff) << 56) | ((res & 0xff00000000000000) >> 56) | ((res & 0xff00) << 40) | ((res & 0xff000000000000) >> 40) | ((res & 0xff0000) << 24) | ((res & 0xff0000000000) >> 24) | ((res & 0xff000000) << 8) | ((res & 0xff00000000) >> 8);
     return res;
 }
 uint32_t AP_ExternalAHRS_LORD::get4ByteField(const uint8_t* pkt, uint8_t offset) {
     uint32_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 16 | get2ByteField(pkt, offset + 2 * i);
+    // for (int i = 0; i < 2; i++)
+    //     res = res << 16 | get2ByteField(pkt, offset + 2 * i);
+    memmove(&res, pkt+offset, 4);
+    if (char(1) == 1) // Is the device little endian (need to convert big endian packet field to little endian)
+        res = ((res & 0xff) << 24) | ((res & 0xff000000) >> 24) | ((res & 0xff00) << 8) | ((res & 0xff0000) >> 8);
     return res;
 }
 uint16_t AP_ExternalAHRS_LORD::get2ByteField(const uint8_t* pkt, uint8_t offset) {
     uint16_t res = 0;
-    for (int i = 0; i < 2; i++)
-        res = res << 8 | pkt[offset + i];
+    // for (int i = 0; i < 2; i++)
+    //     res = res << 8 | pkt[offset + i];
+    memmove(&res, pkt+offset, 2);
+    if (char(1) == 1)
+        res = ((res & 0xff) << 8) | ((res & 0xff00) >> 8);
     return res;
 }
 

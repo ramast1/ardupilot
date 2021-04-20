@@ -44,6 +44,7 @@ public:
     typedef struct {
         Vector3f accel;
         Vector3f gyro;
+        Vector3f mag;
     } lordPacket_t;
 
 private:
